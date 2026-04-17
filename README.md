@@ -1,60 +1,51 @@
 # Concurrent Factorization Pipeline
 
-> High-performance concurrent service for prime factorization of integers using a pipeline architecture with separation of computation and I/O stages.
+Многопоточный сервис на Go для факторизации целых чисел с конвейерной обработкой и разделением вычислительного и I/O этапов.
 
-> **Note:** The implementation source code is not publicly available due to course confidentiality and academic integrity requirements.
+## О проекте
 
----
+Сервис обрабатывает набор чисел и раскладывает их на простые множители, используя pipeline-архитектуру с независимыми стадиями вычисления и записи результата.
 
-## Overview
+## Highlights
 
-Проект представляет собой конкурентный сервис факторизации чисел, реализованный как **pipeline** с разделением этапов обработки.
+- Параллельная факторизация чисел через worker pool
+- Конвейерная обработка с разделением стадий factorization / write
+- Независимые пулы воркеров для вычислений и записи
+- Поддержка отмены обработки через `context.Context`
+- Раннее завершение pipeline при ошибках записи
+- Гибкая настройка числа воркеров через Functional Options
 
-Основные требования:
-- высокая производительность при обработке большого количества чисел
-- корректная работа при конкурентной нагрузке
-- управляемый параллелизм
-- безопасное завершение обработки при ошибках
+## Архитектура
 
----
+```text
+Input -> Factorization Workers -> Results Channel -> Write Workers -> io.Writer
+```
 
-## Key Features
+- **Factorization workers** — выполняют разложение чисел на простые множители
+- **Results channel** — передает результаты между стадиями pipeline
+- **Write workers** — записывают результаты в `io.Writer`
+- **Context cancellation** — останавливает весь pipeline при отмене или ошибке
 
-- **Concurrent processing (goroutines + channels)**  
-  Параллельная факторизация чисел с использованием каналов
+## Ключевые идеи реализации
 
-- **Pipeline architecture**  
-  Разделение обработки на независимые стадии (compute / write)
+- Вычислительный и I/O этапы разделены, чтобы не смешивать CPU-bound и I/O-bound нагрузку
+- Для каждой стадии используется собственный пул воркеров
+- Взаимодействие между стадиями построено на каналах
+- При ошибках записи обработка корректно прерывается для всех goroutines
+- Количество воркеров настраивается через Functional Options
 
-- **Independent worker pools**  
-  Отдельные пулы воркеров для CPU-bound и I/O-bound этапов
+## Пример конфигурации
 
-- **Context cancellation**  
-  Поддержка отмены обработки через `context.Context`
+```go
+factorizer := New(
+    WithFactorizationWorkers(4),
+    WithWriteWorkers(2),
+)
+```
 
-- **Error propagation**  
-  Раннее завершение всех воркеров при ошибках записи
+## Запуск и тестирование
 
-- **Functional Options pattern**  
-  Гибкая настройка количества воркеров
-
----
-
-## Worker model
-
-- входные данные разбиваются между factorization workers
-- результаты передаются через каналы
-- write workers обрабатывают поток результатов и записывают их в `io.Writer`
-- используется конвейерная обработка (pipeline)
-
----
-
-## Concurrency
-
-Реализовано:
-
-- использование **goroutines** для параллельной обработки
-- синхронизация через **channels** без применения mutex
-- разделение CPU-bound и I/O-bound стадий
-- безопасная остановка через `context.Context`
-
+```bash
+task update
+task test
+```
